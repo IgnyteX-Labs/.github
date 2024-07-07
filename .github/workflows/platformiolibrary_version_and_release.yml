@@ -1,0 +1,170 @@
+name: Determine semantic version and create release
+
+on:
+  workflow_call:
+
+jobs:
+   versioning:
+    name: Determine and update library.json version and create Release
+    permissions: write-all
+
+    runs-on: ubuntu-latest
+    outputs:
+      branchname: ${{ steps.versioninfo.outputs.branchname }}
+      commithash: ${{ steps.versioninfo.outputs.commithash }}
+      buildtimestamp: ${{ steps.versioninfo.outputs.buildtimestamp }}
+      lastmajordigit: ${{ steps.versioninfo.outputs.lastmajordigit }}
+      lastminordigit: ${{ steps.versioninfo.outputs.lastminordigit }}
+      lastpatchdigit: ${{ steps.versioninfo.outputs.lastpatchdigit }}
+      lastversion: ${{ steps.versioninfo.outputs.lastversion }}
+      nextmajordigit: ${{ steps.selectversion.outputs.nextmajordigit }}
+      nextminordigit: ${{ steps.selectversion.outputs.nextminordigit }}
+      nextpatchdigit: ${{ steps.selectversion.outputs.nextpatchdigit }}
+      buildversion: ${{ steps.selectversion.outputs.buildversion }}
+      buildversionpure: ${{ steps.selectversion.outputs.buildversionpure }}
+      buildversionfilename: ${{ steps.selectversion.outputs.buildversionfilename }}
+
+    steps:
+      - name: Enable caching
+        uses: actions/cache@main
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+          key: ${{ runner.os }}-pio
+
+      - name: Checkout Repository
+        uses: actions/checkout@main
+        with:
+          fetch-depth: 0
+    
+      - name: Get version data
+        id: versioninfo
+        run: |
+          echo "extract branch name from github_ref '${{ github.ref }}'"
+          declare branchname=$(echo "${{ github.ref }}" | cut -d'/' -f 3-)
+          echo "clean branch name = $branchname"
+          echo "extract commit short hash : $(git rev-parse --short HEAD)"
+          declare commithash=$(git rev-parse --short HEAD)
+          echo "extract build timestamp"
+          declare buildtimestamp=$(date "+%Y-%b-%d-%H:%M:%S")
+          echo "buildtimestamp = $buildtimestamp"
+          declare fulltag=$(git describe --tag $(git rev-parse --verify refs/remotes/origin/main))
+          echo "fulltag = [$fulltag]"
+          declare versiontag=$(echo $fulltag | cut -d'-' -f1)
+          echo "extract SemVer numbers from version tag [$versiontag]"
+          declare -i lastmajordigit=$(echo $versiontag | cut -c 1- | cut -d'.' -f1)
+          echo "lastmajordigit = $lastmajordigit"
+          declare -i lastminordigit=$(echo $versiontag | cut -c 1- | cut -d'.' -f2)
+          echo "lastminordigit = $lastminordigit"
+          declare -i lastpatchdigit=$(echo $versiontag | cut -c 1- | cut -d'.' -f3)
+          echo "lastpatchdigit = $lastpatchdigit"
+          declare lastversion="v$lastmajordigit.$lastminordigit.$lastpatchdigit"
+          echo "output variables to GitHub Actions"
+          echo "branchname=$branchname" >> $GITHUB_OUTPUT
+          echo "lastmajordigit=$lastmajordigit" >> $GITHUB_OUTPUT
+          echo "lastminordigit=$lastminordigit" >> $GITHUB_OUTPUT
+          echo "lastpatchdigit=$lastpatchdigit" >> $GITHUB_OUTPUT
+          echo "commithash=$commithash" >> $GITHUB_OUTPUT
+          echo "buildtimestamp=$buildtimestamp" >> $GITHUB_OUTPUT
+          echo "lastversion=$lastversion" >> $GITHUB_OUTPUT
+
+      - name: Determine which version to build
+        id: selectversion
+        run: |
+          echo "Triggered from Branch : ${{ steps.versioninfo.outputs.branchname }}"
+          echo "Commit hash           : ${{ steps.versioninfo.outputs.commithash }}"
+          echo "Last version          : ${{ steps.versioninfo.outputs.lastversion }}"
+          echo "  Major               : ${{ steps.versioninfo.outputs.lastmajordigit }}"
+          echo "  Minor               : ${{ steps.versioninfo.outputs.lastminordigit }}"
+          echo "  Patch               : ${{ steps.versioninfo.outputs.lastpatchdigit }}"
+          echo "Triggered from merge on ${{ steps.versioninfo.outputs.branchname }} branch with commit title : ${{ github.event.head_commit.message }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            declare message="${{ github.event.pull_request.title }}"
+          else
+            declare message="${{ github.event.head_commit.message }}"
+          fi
+          if [[ $message == *"major"* ]]; then
+            echo "Incrementing Major versionDigit"
+            declare -i nextmajordigit=${{ steps.versioninfo.outputs.lastmajordigit }}+1
+            declare -i nextminordigit=0
+            declare -i nextpatchdigit=0
+            declare buildversion="v$nextmajordigit.$nextminordigit.$nextpatchdigit"
+            declare buildversionpure="$nextmajordigit.$nextminordigit.$nextpatchdigit"
+            declare buildversionfilename=$(echo "${buildversion//./_}")
+
+          elif [[ $message == *"minor"* ]]; then
+            echo "Incrementing Minor versionDigit"
+            declare -i nextmajordigit=${{ steps.versioninfo.outputs.lastmajordigit }}
+            declare -i nextminordigit=${{ steps.versioninfo.outputs.lastminordigit }}+1
+            declare -i nextpatchdigit=0
+            declare buildversion="v$nextmajordigit.$nextminordigit.$nextpatchdigit"
+            declare buildversionpure="$nextmajordigit.$nextminordigit.$nextpatchdigit"
+            declare buildversionfilename=$(echo "${buildversion//./_}")
+          else
+            echo "Incrementing Patch versionDigit"
+            declare -i nextmajordigit=${{ steps.versioninfo.outputs.lastmajordigit }}
+            declare -i nextminordigit=${{ steps.versioninfo.outputs.lastminordigit }}
+            declare -i nextpatchdigit=${{ steps.versioninfo.outputs.lastpatchdigit }}+1
+            declare buildversion="v$nextmajordigit.$nextminordigit.$nextpatchdigit"
+            declare buildversionpure="$nextmajordigit.$nextminordigit.$nextpatchdigit"
+            declare buildversionfilename=$(echo "${buildversion//./_}")
+          fi
+          echo "Building Version : $buildversion"
+          echo "  Major          : $nextmajordigit"
+          echo "  Minor          : $nextminordigit"
+          echo "  Patch          : $nextpatchdigit"
+          echo "Filename         : $buildversionfilename"
+          echo "output variables to GitHub Actions"
+          echo "nextmajordigit=$nextmajordigit" >> $GITHUB_OUTPUT
+          echo "nextminordigit=$nextminordigit" >> $GITHUB_OUTPUT
+          echo "nextpatchdigit=$nextpatchdigit" >> $GITHUB_OUTPUT
+          echo "buildversion=$buildversion" >> $GITHUB_OUTPUT
+          echo "buildversionpure=$buildversionpure" >> $GITHUB_OUTPUT
+          echo "buildversionfilename=$buildversionfilename" >> $GITHUB_OUTPUT
+
+      - name: Show Build info
+        id: showbuildinfo
+        run: |
+          echo "Build Version   : ${{ steps.selectversion.outputs.buildversion }}"
+          echo "Pure Version    : ${{ steps.selectversion.outputs.buildversionpure }}"
+          echo "  Major         : ${{ steps.selectversion.outputs.nextmajordigit }}"
+          echo "  Minor         : ${{ steps.selectversion.outputs.nextminordigit }}"
+          echo "  Patch         : ${{ steps.selectversion.outputs.nextpatchdigit }}"
+          echo "Build Filename  : ${{ steps.selectversion.outputs.buildversionfilename }}"
+          echo "Build Timestamp : ${{ steps.versioninfo.outputs.buildtimestamp }}"
+
+      - name: Update library.json version on PR
+        uses: jossef/action-set-json-field@v2.1
+        if: ${{ github.event_name == 'pull_request'}}
+        with:
+          file: library.json
+          field: version
+          value: "${{ steps.selectversion.outputs.buildversionpure }}"
+      
+      - name: Commit files on PR
+        if: ${{ github.event_name == 'pull_request'}}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot"
+          git add library.json
+          git commit -m "docs: Set version number ${{ steps.selectversion.outputs.buildversion }}"
+
+      - name: Push changes on PR
+        if: ${{ github.event_name == 'pull_request'}}
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.head_ref }}
+
+      - name: Release when on main branch
+        id: createrelease
+        uses: softprops/action-gh-release@v2
+        if: ${{ steps.versioninfo.outputs.branchname == 'main'}}
+        with:
+          tag_name: ${{ steps.selectversion.outputs.buildversion }}
+          name: Release ${{ steps.selectversion.outputs.buildversion }}
+          token: ${{secrets.GITHUB_TOKEN}}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
