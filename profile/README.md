@@ -5,18 +5,18 @@ Even tough we like to take an effort in trying to do things as best-practice as 
 
 ## Overview
 ### Tank
-We decided to build a tank, just for fun. things will come to github as we code them
-### embedded
-toqix has done some embedded libraries. go take a look
-### libraries
-singlejson, remotecontroller and other stuff is (and will be) available for non embedded plattforms as well.
-### minecraft
-we have done some fun plugins, most of them are now old relics that nobody wants to touch, but mlgrush-2 and bedwars are two finished products.
-also invman is supposed to work at some point, until then you can see the relatively up to date minecraft-plugin-manager written in python.
-### the ignyte.link domain
-is supposed to be a functional website at some point. who knows what is going to happen
+We decided to build a tank, just for fun. things will come to github as we code them.
+### Embedded
+[@toqix](https://github.com/toqix) has done some embedded libraries. Go take a look!
+### Libraries
+[__Json-singletons__](https://gitlab.com/Qrashi/json-singletons), [__RemoteController__](https://github.com/IgnyteX-Labs/RemoteController-Protocol) and other stuff is (and will be) available for __non__ embedded plattforms as well.
+### Minecraft
+We have done some fun plugins, most of them are now old relics that nobody wants to touch, but [__mlgrush-2__](https://github.com/toqix/MLG-Rush-2) and [__bedwars__](https://gitlab.com/Qrashi/InvasionBW) are two finished products.
+Also [__invman__](https://gitlab.com/Qrashi/invman) is supposed to work at some point, until then you can see the relatively up to date minecraft-plugin-manager written in python.
+### The ignyte.link domain
+is supposed to be a functional website at some point. who knows what is going to happen.
 <br>
-#### ignyteX-labs
+#### IgnyteX-labs
 We coundn't come up with a better name so we stuck to this one =)
 
 
